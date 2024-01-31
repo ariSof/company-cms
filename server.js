@@ -35,27 +35,27 @@ function addNewEmployee(newEmployee) {
 }
 
 //helper function to concatinate Names
+//used to display names when updating an Employee's role
 function concatNames(employees){
     return employees.first_name + " " + employees.last_name;
 }
 
 function updateEmployeeRole() {
-    console.log("Meant to UPdate an emp role...")
+    //First get the list of current employees
     db.query('SELECT first_name, last_name FROM employee', function (err, employees) {
         const employeeNames = employees.map(concatNames);
-        console.log(employeeNames);
        
         //prompt to enter employee info
         inquirer
         .prompt([
             {
-                type: 'list',
+                type: 'rawlist',
                 message: "Select employee to update:",
                 name: 'employee',
                 choices: employeeNames,
             },
             {
-                type: 'list',
+                type: 'rawlist',
                 message: "Select role:",
                 name: 'role',
                 choices: ["Account Manager", "Accountant", "Software Engineer", "Lead Engineer",
@@ -63,13 +63,15 @@ function updateEmployeeRole() {
             },
         ])
         .then((updatedEmployee) => {
-            console.log(updatedEmployee.name);
-            console.log(updatedEmployee.role);
+            console.log(updatedEmployee.employee);
+            console.log(updatedEmployee.role.index); //selected name(title) of role
+
            // db.query(`UPDATE employee SET role_id = ${updatedEmployee.role} WHERE employee.last_name =  ${updatedEmployee.name}`, function (err, employees) {
              //   UPDATE `company_db`.`employee` SET `manager_id` = '8' WHERE (`id` = '9');
                // const employeeNames = employees.map(concatNames);
+            cmsPrompt();
         });
-        cmsPrompt();
+        
     })
 }
 
@@ -80,9 +82,71 @@ function viewAllRoles() {
       });
 }
 
+function addNewRole() {
+    //first get a list of the departments
+    db.query('SELECT name FROM department', function (err, dep) {
+
+    inquirer
+        .prompt([
+            {
+                type: 'input',
+                message: "Enter role name:",
+                name: 'name',
+            },
+            {
+                type: 'input',
+                message: "Enter role salary:",
+                name: 'salary',
+            },
+            {
+                type: 'rawlist',
+                message: "Select department for the role:",
+                name: 'department',
+                choices: dep,
+            },
+        ])
+        .then((newRole) => {
+            //get the index for selected department
+            let index = 1;
+            for(let i=0; i<dep.length; i++){
+                if(newRole.department === dep[i].name) {
+                    index = i+1;
+                }
+            }
+        
+            // INSERT INTO role (newDept.name, newDept.salary, department_id) VALUES ("data scientist", 90000, 1);
+            db.query(`INSERT INTO role (title, salary, department_id) VALUES ("${newRole.name}", ${newRole.salary}, ${index})`, function (err, results) {
+                
+                if(err){
+                    console.error(err);
+                }
+                    
+                if(results.affectedRows === 1){
+                    console.log(`Added ${newRole.name} to the database.`);
+                }
+                cmsPrompt();
+            });
+        });
+    });
+}
+
 function viewAllDepartments() {
     db.query('SELECT * FROM department', function (err, results) {
         console.table(results);
+        cmsPrompt();
+    });
+}
+
+function addNewDepartment(newDepartment) {
+    
+    db.query(`INSERT INTO department(name) VALUES ("${newDepartment}")`, function (err, results) {
+        if(err){
+            console.error(err);
+        }
+
+        if(results.affectedRows === 1){
+            console.log(newDepartment +" department added to the database.");
+        }
         cmsPrompt();
     });
 }
@@ -137,11 +201,25 @@ function cmsPrompt() {
             case "View all Roles":
                 viewAllRoles();
                 break;
-            //case "Add Role"
+            case "Add Role":
+                addNewRole();
+                break;
             case "View all Departments" :
                 viewAllDepartments();
-            //case "Add Department"
-          
+                break;
+            case "Add Department":
+                inquirer
+                    .prompt([
+                        {
+                            type: 'input',
+                            message: "Enter department name:",
+                            name: 'dept',
+                        },
+                    ])
+                    .then((newDept) => {
+                        addNewDepartment(newDept.dept);
+                    });
+                break;
         }
     })
 }
