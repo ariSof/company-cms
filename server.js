@@ -13,9 +13,7 @@ app.use(express.json());
 const db = mysql.createConnection(
   {
     host: 'localhost',
-    // MySQL username,
     user: 'root',
-    // MySQL password
     password: 'elsql',
     database: 'company_db'
   },
@@ -24,8 +22,9 @@ const db = mysql.createConnection(
 
 //Function to query to select all employees, then call prompt again
 function viewAllEmployees(){
+    console.log("Came to view All Emp");
     db.query('SELECT * FROM employee', function (err, results) {
-        console.log(results);
+        console.table(results);
         cmsPrompt();
       });
 }
@@ -35,8 +34,60 @@ function addNewEmployee(newEmployee) {
     cmsPrompt();
 }
 
-function cmsPrompt() {
+//helper function to concatinate Names
+function concatNames(employees){
+    return employees.first_name + " " + employees.last_name;
+}
 
+function updateEmployeeRole() {
+    console.log("Meant to UPdate an emp role...")
+    db.query('SELECT first_name, last_name FROM employee', function (err, employees) {
+        const employeeNames = employees.map(concatNames);
+        console.log(employeeNames);
+       
+        //prompt to enter employee info
+        inquirer
+        .prompt([
+            {
+                type: 'list',
+                message: "Select employee to update:",
+                name: 'employee',
+                choices: employeeNames,
+            },
+            {
+                type: 'list',
+                message: "Select role:",
+                name: 'role',
+                choices: ["Account Manager", "Accountant", "Software Engineer", "Lead Engineer",
+                            "Sales Manager", "Salesperson", "Consultant", "Legal Team Manager", "Lawyer"]
+            },
+        ])
+        .then((updatedEmployee) => {
+            console.log(updatedEmployee.name);
+            console.log(updatedEmployee.role);
+           // db.query(`UPDATE employee SET role_id = ${updatedEmployee.role} WHERE employee.last_name =  ${updatedEmployee.name}`, function (err, employees) {
+             //   UPDATE `company_db`.`employee` SET `manager_id` = '8' WHERE (`id` = '9');
+               // const employeeNames = employees.map(concatNames);
+        });
+        cmsPrompt();
+    })
+}
+
+function viewAllRoles() {
+    db.query('SELECT * FROM role', function (err, results) {
+        console.table(results);
+        cmsPrompt();
+      });
+}
+
+function viewAllDepartments() {
+    db.query('SELECT * FROM department', function (err, results) {
+        console.table(results);
+        cmsPrompt();
+    });
+}
+
+function cmsPrompt() {
     inquirer
         .prompt([
         {
@@ -47,7 +98,7 @@ function cmsPrompt() {
         },
     ])
     .then((response) => {
-        switch(response) {
+        switch(response.begin) {
             case "View All Employees":
                 viewAllEmployees();
                 break;
@@ -80,15 +131,22 @@ function cmsPrompt() {
                         addNewEmployee(newEmployee);
                     });
                 break;
-            //case "Update Employee Role":
-            //case "View all Roles"
+            case "Update Employee Role":
+                updateEmployeeRole();
+                break;
+            case "View all Roles":
+                viewAllRoles();
+                break;
             //case "Add Role"
-            //case "View all Departments"
+            case "View all Departments" :
+                viewAllDepartments();
             //case "Add Department"
           
         }
     })
 }
+
+cmsPrompt();
 
 // Default response for any other request (Not Found)
 app.use((req, res) => {
