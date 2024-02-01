@@ -20,9 +20,33 @@ const db = mysql.createConnection(
   console.log(`Connected to the company_db database.`)
 );
 
+//helper function to concatinate Names
+//used to display names when updating an Employee's role
+function concatNames(employees){
+    return employees.first_name + " " + employees.last_name;
+}
+
+//Helper function to get table list of employee names
+function getListOfEmployeeNames(){
+    db.query('SELECT first_name, last_name FROM employee', function (err, employees) {
+        //const employeeNames = employees.map(concatNames);
+        return employees;//employeeNames;
+    });
+}
+
+//Helper function to get list roles
+function getListOfRoles(roles) {
+    return roles.title;
+    
+    // db.query(`SELECT title FROM role`, function (err, results) {
+    //     return results;
+    //   });
+}
+
+
 //Function to query to select all employees, then call prompt again
 function viewAllEmployees(){
-    console.log("Came to view All Emp");
+    
     db.query('SELECT * FROM employee', function (err, results) {
         console.table(results);
         cmsPrompt();
@@ -30,20 +54,84 @@ function viewAllEmployees(){
 }
 
 //Function used to query to add employee to db, then call prompt again
-function addNewEmployee(newEmployee) {
-    cmsPrompt();
-}
+function addNewEmployee() {
 
-//helper function to concatinate Names
-//used to display names when updating an Employee's role
-function concatNames(employees){
-    return employees.first_name + " " + employees.last_name;
+    //Get the list of roles
+    db.query('SELECT title FROM role', function (err, roles) {
+        const listOfRoles = roles.map(getListOfRoles);
+      
+         //Get the list of employees who could be the manager, and concatinate names
+        db.query('SELECT first_name, last_name FROM employee', function (err, employees) {
+            const listOfEmployees = employees.map(concatNames);
+            
+            //prompt to enter employee info
+            inquirer
+            .prompt([
+                {
+                    type: 'input',
+                    message: "Please enter employees first name:",
+                    name: 'eFirstName',
+                },
+                {
+                    type: 'input',
+                    message: "Please enter employees last name:",
+                    name: 'eLastName',
+                },
+                {
+                    type: 'list',
+                    message: "Please enter employees role:",
+                    name: 'role',
+                    choices: listOfRoles,
+                },
+                {
+                    type: 'list',
+                    message: "Please enter employees manager:",
+                    name: 'manager',
+                    choices: listOfEmployees,
+                },
+            ])
+            .then((newEmployee) => {
+                //Get index for role selected
+                let rIndex = 1;
+                for(let i=0; i<listOfRoles.length; i++){
+                    if(newEmployee.role === listOfRoles[i]) {
+                        rIndex = i+1;
+                    }
+                }
+
+                //Get index for manager selected
+                let mIndex = 1;
+                for(let i=0; i<employees.length; i++){
+                    if(newEmployee.manager === (employees[i].first_name + " " + employees[i].last_name)) {
+                        mIndex = i+1;
+                    }
+                }
+
+                //query to add employee to database
+                db.query(`INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES ("${newEmployee.eFirstName}", "${newEmployee.eLastName}", ${rIndex}, ${mIndex})`, function (err, results) {
+                        
+                    if(err){
+                        console.error(err);
+                    }
+                    
+                    //Employee added to database
+                    if(results.affectedRows === 1){
+                        console.log(`Added ${newEmployee.eFirstName} ${newEmployee.eLastName} to the database.`);
+                    }
+
+                    //Return to Main menu prompt
+                    cmsPrompt();
+                });
+            });
+        });
+    });
 }
 
 function updateEmployeeRole() {
     //First get the list of current employees
-    db.query('SELECT first_name, last_name FROM employee', function (err, employees) {
-        const employeeNames = employees.map(concatNames);
+    //db.query('SELECT first_name, last_name FROM employee', function (err, employees) {
+        const tableEmployeeNames = getListOfEmployeeNames();
+        const employeeNames = tableEmployeeNames.map(concatNames);
        
         //prompt to enter employee info
         inquirer
@@ -72,7 +160,7 @@ function updateEmployeeRole() {
             cmsPrompt();
         });
         
-    })
+    //})
 }
 
 function viewAllRoles() {
@@ -167,33 +255,7 @@ function cmsPrompt() {
                 viewAllEmployees();
                 break;
             case "Add Employee":
-                //prompt to enter employee info
-                inquirer
-                    .prompt([
-                        {
-                            type: 'input',
-                            message: "Please enter employees first name:",
-                            name: 'employeeName',
-                        },
-                        {
-                            type: 'input',
-                            message: "Please enter employees lasst name:",
-                            name: 'employeeLName',
-                        },
-                        {
-                            type: 'input',
-                            message: "Please enter employees role:",
-                            name: 'employeeRole',
-                        },
-                        {
-                            type: 'input',
-                            message: "Please enter employees manager:",
-                            name: 'manager',
-                        },
-                    ])
-                    .then((newEmployee) => {
-                        addNewEmployee(newEmployee);
-                    });
+                addNewEmployee();
                 break;
             case "Update Employee Role":
                 updateEmployeeRole();
