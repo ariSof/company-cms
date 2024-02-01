@@ -26,21 +26,10 @@ function concatNames(employees){
     return employees.first_name + " " + employees.last_name;
 }
 
-//Helper function to get table list of employee names
-function getListOfEmployeeNames(){
-    db.query('SELECT first_name, last_name FROM employee', function (err, employees) {
-        //const employeeNames = employees.map(concatNames);
-        return employees;//employeeNames;
-    });
-}
 
 //Helper function to get list roles
 function getListOfRoles(roles) {
     return roles.title;
-    
-    // db.query(`SELECT title FROM role`, function (err, results) {
-    //     return results;
-    //   });
 }
 
 
@@ -50,7 +39,7 @@ function viewAllEmployees(){
     db.query('SELECT * FROM employee', function (err, results) {
         console.table(results);
         cmsPrompt();
-      });
+    });
 }
 
 //Function used to query to add employee to db, then call prompt again
@@ -129,45 +118,73 @@ function addNewEmployee() {
 
 function updateEmployeeRole() {
     //First get the list of current employees
-    //db.query('SELECT first_name, last_name FROM employee', function (err, employees) {
-        const tableEmployeeNames = getListOfEmployeeNames();
-        const employeeNames = tableEmployeeNames.map(concatNames);
+    db.query('SELECT first_name, last_name FROM employee', function (err, employees) {
+        const employeeNames = employees.map(concatNames);
+        
+        //Get the list of roles
+        db.query('SELECT title FROM role', function (err, roles) {
+            const listOfRoles = roles.map(getListOfRoles);
        
-        //prompt to enter employee info
-        inquirer
-        .prompt([
-            {
-                type: 'rawlist',
-                message: "Select employee to update:",
-                name: 'employee',
-                choices: employeeNames,
-            },
-            {
-                type: 'rawlist',
-                message: "Select role:",
-                name: 'role',
-                choices: ["Account Manager", "Accountant", "Software Engineer", "Lead Engineer",
-                            "Sales Manager", "Salesperson", "Consultant", "Legal Team Manager", "Lawyer"]
-            },
-        ])
-        .then((updatedEmployee) => {
-            console.log(updatedEmployee.employee);
-            console.log(updatedEmployee.role.index); //selected name(title) of role
+            //prompt to enter employee info
+            inquirer
+            .prompt([
+                {
+                    type: 'rawlist',
+                    message: "Select employee to update:",
+                    name: 'employee',
+                    choices: employeeNames,
+                },
+                {
+                    type: 'rawlist',
+                    message: "Select role:",
+                    name: 'role',
+                    choices: listOfRoles,
+                },
+            ])
+            .then((updatedEmployee) => {
 
-           // db.query(`UPDATE employee SET role_id = ${updatedEmployee.role} WHERE employee.last_name =  ${updatedEmployee.name}`, function (err, employees) {
-             //   UPDATE `company_db`.`employee` SET `manager_id` = '8' WHERE (`id` = '9');
-               // const employeeNames = employees.map(concatNames);
-            cmsPrompt();
+                //Get index for role selected
+                let rIndex = 1;
+                for(let i=0; i<listOfRoles.length; i++){
+                    if(updatedEmployee.role === listOfRoles[i]) {
+                        rIndex = i+1;
+                    }
+                }
+
+                //Get index of employee selected
+                let eIndex = 1;
+                for(let i=0; i<employees.length; i++){
+                    if(updatedEmployee.employee === (employees[i].first_name + " " + employees[i].last_name)) {
+                        eIndex = i+1;
+                    }
+                }
+
+                //Query database to update employee with selected new role 
+                db.query(`UPDATE employee SET role_id = ${rIndex} WHERE employee.id =  ${eIndex}`, function (err, result) {
+                
+                    if(err){
+                        console.error(err);
+                    }
+                    
+                    //Employee added to database
+                    if(result.affectedRows === 1){
+                        console.log(`Updated ${updatedEmployee.employee} on the database.`);
+                    }
+
+                    //Return to main menu prompt
+                    cmsPrompt();
+                 });
+            });
         });
         
-    //})
+    })
 }
 
 function viewAllRoles() {
     db.query('SELECT * FROM role', function (err, results) {
         console.table(results);
         cmsPrompt();
-      });
+    });
 }
 
 function addNewRole() {
